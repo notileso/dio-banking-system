@@ -1,12 +1,24 @@
 import textwrap
-from typing import TypedDict
 from app.models import *
+import functools
+from datetime import datetime, UTC
+from collections.abc import Callable
+from typing import ParamSpec, TypeVar
 
-class User(TypedDict):
-    document_number: str
-    name: str
-    birth_date: str
-    address: str
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def logger(func: Callable[P, R]) -> Callable[P, R]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        now = datetime.now(UTC)
+        print(f"{now.strftime('%d/%m/%Y %H:%M:%S')} calling function {func.__name__}")
+        result = func(*args, **kwargs)
+        return result
+
+    return wrapper
+
 
 def menu():
     menu = """
@@ -27,14 +39,26 @@ def convert_and_valid_value(value: str) -> float | None:
     except ValueError:
         return None
 
-def filter_customer(document_number: str, customers: list[NaturalPerson]) -> Customer | None:
-    return next((customer for customer in customers if customer.document_number == document_number), None)
+
+def filter_customer(
+    document_number: str, customers: list[NaturalPerson]
+) -> Customer | None:
+    return next(
+        (
+            customer
+            for customer in customers
+            if customer.document_number == document_number
+        ),
+        None,
+    )
+
 
 def get_customer_account(customer: NaturalPerson | Customer):
     if not customer.accounts:
         print("\n@@@ Cliente não possui conta! @@@")
         return
     return customer.accounts[0]
+
 
 def request_customer_data(customers: list[NaturalPerson]):
     document_number = input("Informe o CPF (somente número): ")
@@ -44,57 +68,73 @@ def request_customer_data(customers: list[NaturalPerson]):
         return
     return customer
 
+
+@logger
 def deposit(customers: list[NaturalPerson]):
-    if not (customer:=request_customer_data(customers)): return
+    if not (customer := request_customer_data(customers)):
+        return
     value = input("Informe o valor do depósito: ")
     value = convert_and_valid_value(value)
     if not value:
         print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
         return
     transaction = Deposit(value)
-    if not (account:=get_customer_account(customer)): return
+    if not (account := get_customer_account(customer)):
+        return
     customer.carry_out_transaction(account, transaction)
-    print("\n=== Depósito realizado com sucesso! ===")
 
+
+@logger
 def withdraw(
     customers: list[NaturalPerson],
 ):
-    if not (customer:=request_customer_data(customers)): return
+    if not (customer := request_customer_data(customers)):
+        return
 
-    if not (account:=get_customer_account(customer)): return
+    if not (account := get_customer_account(customer)):
+        return
 
     value = float(input("Informe o valor do saque: "))
     transaction = Withdraw(value)
     customer.carry_out_transaction(account, transaction)
-    print("\n=== Saque realizado com sucesso! ===")
 
 
+@logger
 def display_statement(customers: list[NaturalPerson]):
-    if not (customer:=request_customer_data(customers)): return
-    if not (account:=get_customer_account(customer)): return
+    if not (customer := request_customer_data(customers)):
+        return
+    if not (account := get_customer_account(customer)):
+        return
     print("\n================ EXTRATO ================")
     transactions = account.history.transactions
     if not transactions:
         print("Não foram realizadas movimentações.")
     else:
         for transaction in transactions:
-            print(f"{transaction.date}\t{transaction.__class__.__name__}\t{transaction.value:.2f}")
+            print(
+                f"{transaction.date.strftime('%d/%m/%Y')}\t{transaction.__class__.__name__}\t{transaction.value:.2f}"
+            )
     print(f"\nSaldo:\t\t{account.balance:.2f}")
     print("==========================================")
 
 
+@logger
 def create_account(number: int, customers: list[NaturalPerson]):
-    if not (customer:=request_customer_data(customers)): return
+    if not (customer := request_customer_data(customers)):
+        return
     CheckingAccount.add_account(customer, number)
     print("\n=== Conta criada com sucesso! ===")
 
 
-def list_accounts(accounts: list[Account]):
-    for account in accounts:
+def list_accounts(customers: list[NaturalPerson]):
+    if not (customer := request_customer_data(customers)):
+        return
+    for account in customer.accounts:
         print("=" * 100)
         print(textwrap.dedent(str(account)))
 
 
+@logger
 def create_customer(customers: list[NaturalPerson]):
     document_number = input("Informe o CPF (somente número): ")
     customer = filter_customer(document_number, customers)
@@ -104,44 +144,15 @@ def create_customer(customers: list[NaturalPerson]):
     name = input("Informe o nome completo: ")
     _birth_date = input("Informe a data de nascimento (dd-mm-aaaa): ")
     birth_date = datetime.strptime(_birth_date, "%d-%m-%Y")
-    address = input("Informe o endereço (logradouro, nro - bairro - cidade/sigla estado): ")
+    address = input(
+        "Informe o endereço (logradouro, nro - bairro - cidade/sigla estado): "
+    )
     customers.append(NaturalPerson(document_number, name, birth_date, address))
     print("=== Cliente criado com sucesso! ===")
 
 
-def filter_user(document_number: str, users: list[User]) -> User | None:
-    return next((user for user in users if user["document_number"] == document_number), None)
-
-
-
-def create_user(users: list[User]):
-    document_number = input("Informe o CPF (somente número): ")
-    user = filter_user(document_number, users)
-
-    if user:
-        print("\n@@@ Já existe usuário com esse CPF! @@@")
-        return
-    
-    name = input("Informe o nome completo: ")
-    birth_date = input("Informe a data de nascimento (dd-mm-aaaa): ")
-    address = input("Informe o endereço (logradouro, nro - bairro - cidade/sigla estado): ")
-
-    users.append(
-        {
-            "name": name,
-            "document_number": document_number,
-            "birth_date": birth_date,
-            "address": address,
-        }
-    )
-
-    print("=== Usuário criado com sucesso! ===")
-
-
-
 def main():
     customers: list[NaturalPerson] = []
-    accounts: list[Account] = []
     while True:
 
         menu_option = menu()
@@ -158,13 +169,14 @@ def main():
             create_customer(customers)
 
         elif menu_option == "nc":
-            create_account(len(accounts) + 1, customers)
-        
+            create_account(sum([len(c.accounts) for c in customers]) + 1, customers)
+
         elif menu_option == "lc":
-            list_accounts(accounts)
+            list_accounts(customers)
 
         elif menu_option == "q":
             exit()
+
 
 if __name__ == "__main__":
     main()

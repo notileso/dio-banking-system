@@ -21,6 +21,9 @@ class Customer:
             print("\n@@@ Você excedeu o número máximo de transações diárias. @@@")
         transaction.register(account)
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}: ({self.name})"
+
 
 class NaturalPerson(Customer):
     """
@@ -33,6 +36,9 @@ class NaturalPerson(Customer):
         super().__init__(address, name)
         self.document_number = document_number
         self.birth_date = birth_date
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}: ({self.document_number})"
 
 
 class Account:
@@ -104,6 +110,11 @@ class Account:
             C/C:\t\t{self.number}
             Titular:\t{self.customer.name}
         """
+    
+    def __repr__(self) -> str:
+        return f"<Account: ({self.agency}, {self.number}, {self.customer.name})>"
+
+
 
 
 class CheckingAccount(Account):
@@ -142,6 +153,7 @@ class CheckingAccount(Account):
             print("\n@@@ Operação falhou! O valor do saque excede o limite. @@@")
         return super().withdraw(value)
 
+
 class AccountIterator:
     def __init__(self, accounts: list[Account | CheckingAccount]):
         self._accounts = accounts
@@ -156,6 +168,7 @@ class AccountIterator:
         account = self._accounts[self._index]
         self._index += 1
         return account
+
 
 class Transaction(ABC):
     """

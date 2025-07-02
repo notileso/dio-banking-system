@@ -8,13 +8,19 @@ from typing import ParamSpec, TypeVar
 P = ParamSpec("P")
 R = TypeVar("R")
 
+LOG_FILE = "log.txt"
 
 def logger_transactions(func: Callable[P, R]) -> Callable[P, R]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         now = datetime.now()
-        print(f"{now}: {func.__name__.upper()}")
         result = func(*args, **kwargs)
+        now_result = datetime.now()
+        with open(LOG_FILE, "a") as log_file:
+            log_file.write(f"{now.strftime('%Y-%m-%d %H:%M:%S')}: {func.__name__.upper()} execute <{args}, {kwargs}>\n")
+            log_file.write(f"{now_result.strftime('%Y-%m-%d %H:%M:%S')}: {func.__name__.upper()} result <{result}>\n")
+        print(f"{now.strftime('%Y-%m-%d %H:%M:%S')}: {func.__name__.upper()}")
+        
         return result
     return wrapper
 
@@ -116,7 +122,6 @@ def display_statement(customers: list[NaturalPerson]):
     print("==========================================")
 
 
-@logger_transactions
 def create_account(number: int, customers: list[NaturalPerson]):
     if not (customer := request_customer_data(customers)):
         return
@@ -130,7 +135,6 @@ def list_accounts(customers: list[NaturalPerson]):
     for account in AccountIterator(customer.accounts):
         print("=" * 100)
         print(textwrap.dedent(str(account)))
-
 
 @logger_transactions
 def create_customer(customers: list[NaturalPerson]):

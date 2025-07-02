@@ -1,7 +1,7 @@
 import textwrap
 from app.models import *
 import functools
-from datetime import datetime, UTC
+from datetime import datetime
 from collections.abc import Callable
 from typing import ParamSpec, TypeVar
 
@@ -9,14 +9,13 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def logger(func: Callable[P, R]) -> Callable[P, R]:
+def logger_transactions(func: Callable[P, R]) -> Callable[P, R]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        now = datetime.now(UTC)
-        print(f"{now.strftime('%d/%m/%Y %H:%M:%S')} calling function {func.__name__}")
+        now = datetime.now()
+        print(f"{now}: {func.__name__.upper()}")
         result = func(*args, **kwargs)
         return result
-
     return wrapper
 
 
@@ -69,7 +68,7 @@ def request_customer_data(customers: list[NaturalPerson]):
     return customer
 
 
-@logger
+@logger_transactions
 def deposit(customers: list[NaturalPerson]):
     if not (customer := request_customer_data(customers)):
         return
@@ -84,7 +83,7 @@ def deposit(customers: list[NaturalPerson]):
     customer.carry_out_transaction(account, transaction)
 
 
-@logger
+@logger_transactions
 def withdraw(
     customers: list[NaturalPerson],
 ):
@@ -99,7 +98,6 @@ def withdraw(
     customer.carry_out_transaction(account, transaction)
 
 
-@logger
 def display_statement(customers: list[NaturalPerson]):
     if not (customer := request_customer_data(customers)):
         return
@@ -118,7 +116,7 @@ def display_statement(customers: list[NaturalPerson]):
     print("==========================================")
 
 
-@logger
+@logger_transactions
 def create_account(number: int, customers: list[NaturalPerson]):
     if not (customer := request_customer_data(customers)):
         return
@@ -129,12 +127,12 @@ def create_account(number: int, customers: list[NaturalPerson]):
 def list_accounts(customers: list[NaturalPerson]):
     if not (customer := request_customer_data(customers)):
         return
-    for account in customer.accounts:
+    for account in AccountIterator(customer.accounts):
         print("=" * 100)
         print(textwrap.dedent(str(account)))
 
 
-@logger
+@logger_transactions
 def create_customer(customers: list[NaturalPerson]):
     document_number = input("Informe o CPF (somente número): ")
     customer = filter_customer(document_number, customers)

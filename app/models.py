@@ -17,7 +17,7 @@ class Customer:
         self.accounts.append(account)
 
     def carry_out_transaction(self, account: "Account", transaction: "Transaction"):
-        if len(account.history.todays_transactions()) >= 2:
+        if len(account.history.todays_transactions()) >= 10:
             print("\n@@@ Você excedeu o número máximo de transações diárias. @@@")
         transaction.register(account)
 
@@ -142,6 +142,20 @@ class CheckingAccount(Account):
             print("\n@@@ Operação falhou! O valor do saque excede o limite. @@@")
         return super().withdraw(value)
 
+class AccountIterator:
+    def __init__(self, accounts: list[Account | CheckingAccount]):
+        self._accounts = accounts
+        self._index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index >= len(self._accounts):
+            raise StopIteration
+        account = self._accounts[self._index]
+        self._index += 1
+        return account
 
 class Transaction(ABC):
     """
